@@ -2,10 +2,14 @@
 
 A modern ES module for irregular shape nesting using a genetic algorithm. Based on the original [SVGNest by Jack000](https://github.com/Jack000/SVGnest).
 
+```shell
+$ yarn add svgnest-mjs
+```
+
 ## Usage
 
 ```javascript
-import SvgNest from 'svgnest';
+import SvgNest from 'svgnest-mjs';
 
 const nest = new SvgNest();
 

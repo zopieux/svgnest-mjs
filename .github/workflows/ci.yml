@@ -56,5 +56,5 @@ jobs:
           branch: master
           target-folder: svgnest
           commit-message: Deploy svgnest demo.
-          git-config-user: Alexandre Macabies
+          git-config-name: Alexandre Macabies
           git-config-email: <web+oss@zopieux.com>
