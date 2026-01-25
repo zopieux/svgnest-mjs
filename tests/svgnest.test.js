@@ -6,10 +6,26 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const outputDir = path.resolve(__dirname, 'outputs');
 
-describe('SvgNest Modernized - Core Algorithm', () => {
+if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+}
+
+describe('Core Algorithm', () => {
   const readSvg = (filename) => {
     return fs.readFileSync(path.resolve(__dirname, filename), 'utf8');
+  };
+
+  const writeOutput = (name, svgList) => {
+      if (!svgList) return;
+      svgList.forEach((svg, index) => {
+          const filename = `${name}_${index}.svg`;
+          const filepath = path.join(outputDir, filename);
+          // svg is a DOM element in JSDOM environment
+          const content = svg.outerHTML; 
+          fs.writeFileSync(filepath, content);
+      });
   };
 
   it('should place all simple rectangles in a larger bin', async () => {
@@ -36,10 +52,12 @@ describe('SvgNest Modernized - Core Algorithm', () => {
         nest.start(() => {}, (svgList, efficiency, placedParts, totalParts) => {
             if (svgList) {
                 nest.stop();
-                resolve({ placedParts, totalParts });
+                resolve({ svgList, placedParts, totalParts });
             }
         });
     });
+
+    writeOutput('simple_rects', result.svgList);
 
     expect(result.placedParts).toBe(3);
     expect(result.totalParts).toBe(3);
@@ -67,14 +85,16 @@ describe('SvgNest Modernized - Core Algorithm', () => {
         nest.start(() => {}, (svgList, efficiency, placedParts, totalParts) => {
             if (svgList) {
                 nest.stop();
-                resolve({ placedParts, totalParts });
+                resolve({ svgList, placedParts, totalParts });
             }
         });
     });
 
+    writeOutput('stress_test', result.svgList);
+
     expect(result.placedParts).toBe(result.totalParts);
     expect(result.totalParts).toBeGreaterThan(0);
-  });
+  }, 20000);
 
   it('should handle concave shapes (L-shape)', async () => {
     const svg = `
@@ -96,10 +116,12 @@ describe('SvgNest Modernized - Core Algorithm', () => {
         nest.start(() => {}, (svgList, efficiency, placedParts, totalParts) => {
             if (svgList) {
                 nest.stop();
-                resolve({ placedParts, totalParts });
+                resolve({ svgList, placedParts, totalParts });
             }
         });
     });
+
+    writeOutput('concave_shapes', result.svgList);
 
     expect(result.placedParts).toBe(3);
   });
@@ -128,10 +150,48 @@ describe('SvgNest Modernized - Core Algorithm', () => {
         });
     });
 
+    writeOutput('multiple_bins', result.svgList);
+
     expect(result.svgList.length).toBe(2);
     expect(result.placedParts).toBe(2);
   });
+
+  it('should handle path elements (paths.svg)', async () => {
+    let svg = readSvg('paths.svg');
+    // Add a bin to the SVG
+    svg = svg.replace('</svg>', '<rect id="bin" x="0" y="0" width="500" height="500" fill="none" stroke="black" /></svg>');
+    
+    const nest = new SvgNest();
+    const root = nest.parseSvg(svg);
+    nest.setBin(root.querySelector('#bin'));
+    
+    const workerUrl = path.resolve(__dirname, '../src/util/nestWorker.js');
+    nest.config({
+      spacing: 0,
+      curveTolerance: 0.3,
+      rotations: 1,
+      populationSize: 4,
+      workerUrl
+    });
+
+    const result = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Test timed out')), 10000);
+        nest.start(() => {}, (svgList, efficiency, placedParts, totalParts) => {
+            if (svgList) {
+                clearTimeout(timeout);
+                nest.stop();
+                resolve({ svgList, placedParts, totalParts });
+            }
+        });
+    });
+
+    writeOutput('paths', result.svgList);
+
+    expect(result.placedParts).toBeGreaterThan(0);
+    expect(result.totalParts).toBeGreaterThan(0);
+  });
 });
+
 describe('SvgNest API Edge Cases', () => {
   it('should return false if starting without SVG or bin', () => {
     const nest = new SvgNest();

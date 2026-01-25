@@ -1,6 +1,7 @@
-/src/
+/.orig/
 node_modules/
 dist/
 .direnv/
 *.log
 result
+tests/outputs/

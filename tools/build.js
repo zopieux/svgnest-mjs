@@ -10,6 +10,17 @@ if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir);
 }
 
+// Plugin to handle ?worker imports
+const workerPlugin = {
+  name: 'worker-plugin',
+  setup(build) {
+    build.onResolve({ filter: /\?worker$/ }, args => {
+      // Rewrite the path to be flat relative to the bundle
+      return { path: "./nestWorker.js?worker", external: true }; 
+    });
+  },
+};
+
 async function build() {
   // Build ESM version
   await esbuild.build({
@@ -20,6 +31,7 @@ async function build() {
     platform: "browser",
     sourcemap: true,
     external: ["url", "path", "web-worker"],
+    plugins: [workerPlugin],
   });
 
   // Build CJS version
@@ -31,6 +43,7 @@ async function build() {
     platform: "browser",
     sourcemap: true,
     external: ["url", "path", "web-worker"],
+    plugins: [workerPlugin],
   });
 
   // Build standalone Worker
@@ -42,6 +55,36 @@ async function build() {
     platform: "browser",
     target: "esnext",
   });
+
+  // Create dist/package.json
+  const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
+  const distPkg = {
+    name: pkg.name,
+    version: pkg.version,
+    description: pkg.description,
+    type: "module",
+    main: "./svgnest.cjs",
+    module: "./svgnest.mjs",
+    types: "./index.d.ts",
+    exports: {
+      ".": {
+        "import": "./svgnest.mjs",
+        "require": "./svgnest.cjs",
+        "types": "./index.d.ts"
+      },
+      "./nestWorker": "./nestWorker.js"
+    },
+    dependencies: pkg.dependencies,
+    repository: pkg.repository,
+    license: pkg.license
+  };
+  
+  fs.writeFileSync(path.join(distDir, "package.json"), JSON.stringify(distPkg, null, 2));
+  
+  // Copy type definitions
+  if (fs.existsSync(path.join(rootDir, "index.d.ts"))) {
+      fs.copyFileSync(path.join(rootDir, "index.d.ts"), path.join(distDir, "index.d.ts"));
+  }
 
   console.log("Build complete! Files are in dist/");
 }

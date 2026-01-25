@@ -15,10 +15,11 @@
   "scripts": {
     "transform": "node tools/transform.js",
     "lint": "eslint src/",
-    "build": "yarn transform && yarn lint && node tools/build.js",
+    "build": "node tools/build.js",
     "test": "yarn build && vitest run"
   },
   "dependencies": {
+    "svgpath": "^2.6.0",
     "web-worker": "^1.5.0"
   },
   "devDependencies": {

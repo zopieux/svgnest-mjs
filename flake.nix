@@ -14,6 +14,11 @@
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
+        jsclipper = pkgs.fetchzip {
+          url = "https://downloads.sourceforge.net/project/jsclipper/Javascript_Clipper_6.4.2.2.zip";
+          hash = "sha256-SSTDV+4vfYIsb20ZzSoM0xNps4zWTayl77rhWa4+qbY=";
+          stripRoot = false;
+        };
       in
       {
         packages.svgnest = pkgs.mkYarnPackage {
@@ -26,9 +31,15 @@
             cd deps/svgnest-mjs
 
             # Use legacy files from the remote input
-            cp -f ${svgnest-legacy}/svgnest.js .
-            cp -f ${svgnest-legacy}/svgparser.js .
-            cp -rf ${svgnest-legacy}/util .
+            mkdir -p .orig
+            cp -f ${svgnest-legacy}/*.js .orig/
+            cp -rf ${svgnest-legacy}/util .orig/
+            
+            # Replace clipper with the one from jsclipper
+            # The zip content structure is usually Javascript_Clipper_6.4.2.2/...
+            find ${jsclipper} -name "clipper.js" -exec cp -f {} .orig/util/clipper.js \;
+
+            chmod -R +w .orig
 
             # Run transformation and build
             yarn --offline transform
@@ -81,6 +92,16 @@
           buildInputs = with pkgs; [
             nodejs
             yarn
+            (pkgs.writeShellScriptBin "update-svgnest-source" ''
+              chmod -R ug+w .orig || true
+              rm -rf .orig
+              mkdir -p .orig
+              cp -f ${svgnest-legacy}/*.js .orig/
+              cp -rf ${svgnest-legacy}/util .orig/
+              chmod -R u+w .orig
+              find ${jsclipper} -name "clipper.js" -exec cp -f {} .orig/util/clipper.js \;
+              chmod -R -w .orig
+            '')
           ];
         };
       }

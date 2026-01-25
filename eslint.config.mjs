@@ -2,6 +2,9 @@ import unusedImports from "eslint-plugin-unused-imports";
 import js from "@eslint/js";
 
 export default [
+  {
+    ignores: ["src/util/clipper.js", "dist/**"]
+  },
   js.configs.recommended,
   {
     files: ["src/**/*.js", "tools/**/*.js"],
