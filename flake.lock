@@ -19,24 +19,7 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "svgnest-legacy": "svgnest-legacy",
         "utils": "utils"
-      }
-    },
-    "svgnest-legacy": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1554972915,
-        "narHash": "sha256-dO5oNwAbbtvVdwnAvnnIdTuo7SxzE7lOpESSYvFhFbw=",
-        "owner": "Jack000",
-        "repo": "SVGnest",
-        "rev": "1248dc21efd3f90d1aa52ba5785e27e5217ed2c9",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Jack000",
-        "repo": "SVGnest",
-        "type": "github"
       }
     },
     "systems": {

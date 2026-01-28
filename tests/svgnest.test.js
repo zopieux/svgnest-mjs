@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import SvgNest from '../src/index.js';
+import SvgNest from '../src/index.ts';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -41,7 +41,7 @@ describe('Core Algorithm', () => {
     const root = nest.parseSvg(svg);
     nest.setBin(root.querySelector('#bin'));
     
-    const workerUrl = path.resolve(__dirname, '../src/util/nestWorker.js');
+    const workerUrl = path.resolve(__dirname, '../dist/worker.js');
     nest.config({
         populationSize: 2,
         rotations: 1,
@@ -52,7 +52,7 @@ describe('Core Algorithm', () => {
         nest.start(() => {}, (svgList, efficiency, placedParts, totalParts) => {
             if (svgList) {
                 nest.stop();
-                resolve({ svgList, placedParts, totalParts });
+                resolve({ svgList, placedParts, totalParts, efficiency });
             }
         });
     });
@@ -61,6 +61,8 @@ describe('Core Algorithm', () => {
 
     expect(result.placedParts).toBe(3);
     expect(result.totalParts).toBe(3);
+    expect(result.svgList.length).toBe(1);
+    expect(result.svgList[0].children.length).toBe(4); // 3 parts + 1 bin rect
   });
 
   it('should place many shapes (stress test)', async () => {
@@ -69,7 +71,7 @@ describe('Core Algorithm', () => {
     const root = nest.parseSvg(svg);
     nest.setBin(root.querySelector('#bin'));
     
-    const workerUrl = path.resolve(__dirname, '../src/util/nestWorker.js');
+    const workerUrl = path.resolve(__dirname, '../dist/worker.js');
     nest.config({
       spacing: 0,
       curveTolerance: 0.3,
@@ -84,16 +86,25 @@ describe('Core Algorithm', () => {
     const result = await new Promise((resolve) => {
         nest.start(() => {}, (svgList, efficiency, placedParts, totalParts) => {
             if (svgList) {
-                nest.stop();
-                resolve({ svgList, placedParts, totalParts });
+                resolve({ svgList, placedParts, totalParts, efficiency });
             }
         });
     });
 
     writeOutput('stress_test', result.svgList);
 
-    expect(result.placedParts).toBe(result.totalParts);
-    expect(result.totalParts).toBeGreaterThan(0);
+    expect(result.placedParts).toBe(142);
+    expect(result.totalParts).toBe(142);
+    expect(result.efficiency).toBeGreaterThan(0.528 * 0.95);
+    expect(result.efficiency).toBeLessThan(0.528 * 1.05);
+    expect(result.svgList.length).toBe(2);
+    // Baseline: Bin 0 has ~88 parts (+1 rect), Bin 1 has ~54 parts (+1 rect). GA variance observed.
+    const bin0Count = result.svgList[0].children.length;
+    const bin1Count = result.svgList[1].children.length;
+    expect(bin0Count).toBeGreaterThanOrEqual(75);
+    expect(bin0Count).toBeLessThanOrEqual(100);
+    expect(bin1Count).toBeGreaterThanOrEqual(45);
+    expect(bin1Count).toBeLessThanOrEqual(70);
   }, 20000);
 
   it('should handle concave shapes (L-shape)', async () => {
@@ -109,14 +120,14 @@ describe('Core Algorithm', () => {
     const root = nest.parseSvg(svg);
     nest.setBin(root.querySelector('#bin'));
     
-    const workerUrl = path.resolve(__dirname, '../src/util/nestWorker.js');
+    const workerUrl = path.resolve(__dirname, '../dist/worker.js');
     nest.config({ populationSize: 2, rotations: 4, exploreConcave: true, workerUrl });
 
     const result = await new Promise((resolve) => {
         nest.start(() => {}, (svgList, efficiency, placedParts, totalParts) => {
             if (svgList) {
                 nest.stop();
-                resolve({ svgList, placedParts, totalParts });
+                resolve({ svgList, placedParts, totalParts, efficiency });
             }
         });
     });
@@ -124,6 +135,9 @@ describe('Core Algorithm', () => {
     writeOutput('concave_shapes', result.svgList);
 
     expect(result.placedParts).toBe(3);
+    expect(result.efficiency).toBeGreaterThan(0.09 * 0.95);
+    expect(result.efficiency).toBeLessThan(0.09 * 1.05);
+    expect(result.svgList[0].children.length).toBe(4); // 3 parts + 1 bin rect
   });
 
   it('should use multiple bins if shapes do not fit in one', async () => {
@@ -138,14 +152,14 @@ describe('Core Algorithm', () => {
     const root = nest.parseSvg(svg);
     nest.setBin(root.querySelector('#bin'));
     
-    const workerUrl = path.resolve(__dirname, '../src/util/nestWorker.js');
+    const workerUrl = path.resolve(__dirname, '../dist/worker.js');
     nest.config({ populationSize: 2, rotations: 1, workerUrl });
 
     const result = await new Promise((resolve) => {
         nest.start(() => {}, (svgList, efficiency, placedParts, totalParts) => {
             if (svgList) {
                 nest.stop();
-                resolve({ svgList, placedParts, totalParts });
+                resolve({ svgList, placedParts, totalParts, efficiency });
             }
         });
     });
@@ -154,18 +168,21 @@ describe('Core Algorithm', () => {
 
     expect(result.svgList.length).toBe(2);
     expect(result.placedParts).toBe(2);
+    expect(result.efficiency).toBeGreaterThan(0.694 * 0.95);
+    expect(result.efficiency).toBeLessThan(0.694 * 1.05);
+    expect(result.svgList[0].children.length).toBe(2); // 1 part + 1 bin rect
+    expect(result.svgList[1].children.length).toBe(2); // 1 part + 1 bin rect
   });
 
   it('should handle path elements (paths.svg)', async () => {
     let svg = readSvg('paths.svg');
-    // Add a bin to the SVG
     svg = svg.replace('</svg>', '<rect id="bin" x="0" y="0" width="500" height="500" fill="none" stroke="black" /></svg>');
     
     const nest = new SvgNest();
     const root = nest.parseSvg(svg);
     nest.setBin(root.querySelector('#bin'));
     
-    const workerUrl = path.resolve(__dirname, '../src/util/nestWorker.js');
+    const workerUrl = path.resolve(__dirname, '../dist/worker.js');
     nest.config({
       spacing: 0,
       curveTolerance: 0.3,
@@ -180,15 +197,18 @@ describe('Core Algorithm', () => {
             if (svgList) {
                 clearTimeout(timeout);
                 nest.stop();
-                resolve({ svgList, placedParts, totalParts });
+                resolve({ svgList, placedParts, totalParts, efficiency });
             }
         });
     });
 
     writeOutput('paths', result.svgList);
 
-    expect(result.placedParts).toBeGreaterThan(0);
-    expect(result.totalParts).toBeGreaterThan(0);
+    expect(result.placedParts).toBe(6);
+    expect(result.totalParts).toBe(6);
+    expect(result.efficiency).toBeGreaterThan(0.062 * 0.95);
+    expect(result.efficiency).toBeLessThan(0.062 * 1.05);
+    expect(result.svgList[0].children.length).toBe(7); // 6 parts + 1 bin rect
   });
 });
 

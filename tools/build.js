@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const rootDir = path.join(__dirname, "..");
@@ -16,7 +17,20 @@ const workerPlugin = {
   setup(build) {
     build.onResolve({ filter: /\?worker$/ }, args => {
       // Rewrite the path to be flat relative to the bundle
-      return { path: "./nestWorker.js?worker", external: true }; 
+      return { path: "./worker.js?worker", external: true }; 
+    });
+  },
+};
+
+// Plugin to stub web-worker for browser builds
+const webWorkerStubPlugin = {
+  name: 'web-worker-stub',
+  setup(build) {
+    build.onResolve({ filter: /^web-worker$/ }, () => {
+      return { path: 'data:application/javascript,export default function(){};', namespace: 'web-worker-stub' };
+    });
+    build.onLoad({ filter: /.*/, namespace: 'web-worker-stub' }, (args) => {
+        return { contents: args.path.slice('data:application/javascript,'.length), loader: 'js' };
     });
   },
 };
@@ -24,19 +38,19 @@ const workerPlugin = {
 async function build() {
   // Build ESM version
   await esbuild.build({
-    entryPoints: [path.join(rootDir, "src/index.js")],
+    entryPoints: [path.join(rootDir, "src/index.ts")],
     bundle: true,
     format: "esm",
     outfile: path.join(distDir, "svgnest.mjs"),
     platform: "browser",
     sourcemap: true,
-    external: ["url", "path", "web-worker"],
-    plugins: [workerPlugin],
+    external: ["url", "path"], // removed web-worker from external
+    plugins: [workerPlugin, webWorkerStubPlugin],
   });
 
   // Build CJS version
   await esbuild.build({
-    entryPoints: [path.join(rootDir, "src/index.js")],
+    entryPoints: [path.join(rootDir, "src/index.ts")],
     bundle: true,
     format: "cjs",
     outfile: path.join(distDir, "svgnest.cjs"),
@@ -48,31 +62,31 @@ async function build() {
 
   // Build standalone Worker
   await esbuild.build({
-    entryPoints: [path.join(rootDir, "src/util/nestWorker.js")],
+    entryPoints: [path.join(rootDir, "src/util/worker.ts")],
     bundle: true,
     format: "iife",
-    outfile: path.join(distDir, "nestWorker.js"),
+    outfile: path.join(distDir, "worker.js"),
     platform: "browser",
     target: "esnext",
   });
 
-  // Create dist/package.json
+  // Create dist/package.json (intended to be moved to root)
   const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
   const distPkg = {
     name: pkg.name,
     version: pkg.version,
     description: pkg.description,
     type: "module",
-    main: "./svgnest.cjs",
-    module: "./svgnest.mjs",
-    types: "./index.d.ts",
+    main: "dist/svgnest.cjs",
+    module: "dist/svgnest.mjs",
+    types: "dist/index.d.ts",
     exports: {
       ".": {
-        "import": "./svgnest.mjs",
-        "require": "./svgnest.cjs",
-        "types": "./index.d.ts"
+        "import": "./dist/svgnest.mjs",
+        "require": "./dist/svgnest.cjs",
+        "types": "./dist/index.d.ts"
       },
-      "./nestWorker": "./nestWorker.js"
+      "./worker": "./dist/worker.js"
     },
     dependencies: pkg.dependencies,
     repository: pkg.repository,
@@ -81,9 +95,12 @@ async function build() {
   
   fs.writeFileSync(path.join(distDir, "package.json"), JSON.stringify(distPkg, null, 2));
   
-  // Copy type definitions
-  if (fs.existsSync(path.join(rootDir, "index.d.ts"))) {
-      fs.copyFileSync(path.join(rootDir, "index.d.ts"), path.join(distDir, "index.d.ts"));
+  // Generate type definitions
+  try {
+      console.log("Generating type definitions...");
+      execSync("npx tsc --emitDeclarationOnly --declaration", { cwd: rootDir });
+  } catch (err) {
+      console.error("Type generation failed:", err.stdout ? err.stdout.toString() : err.message);
   }
 
   console.log("Build complete! Files are in dist/");

@@ -2,7 +2,7 @@ import { placePaths } from '../placement-logic.js';
 import { calculateNFP } from '../nfp-logic.js';
 
 if (typeof self !== 'undefined') {
-  self.onmessage = function (e) {
+  self.onmessage = function (e: MessageEvent) {
     const { type, data, id } = e.data;
 
     try {
@@ -15,7 +15,7 @@ if (typeof self !== 'undefined') {
         throw new Error('Unknown message type: ' + type);
       }
       self.postMessage({ id, result });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       self.postMessage({ id, error: err.message });
     }

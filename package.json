@@ -2,12 +2,13 @@
   "name": "svgnest-mjs",
   "version": "1.0.0",
   "description": "SVG nesting tool",
-  "main": "src/index.js",
+  "main": "dist/svgnest.cjs",
+  "module": "dist/svgnest.mjs",
   "type": "module",
-  "types": "src/index.d.ts",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
-    "./nestWorker": "./dist/nestWorker.js"
+    ".": "./dist/svgnest.mjs",
+    "./worker": "./dist/worker.js"
   },
   "repository": {
     "url": "https://github.com/zopieux/svgnest-mjs"
@@ -19,16 +20,20 @@
     "test": "yarn build && vitest run"
   },
   "dependencies": {
+    "js-clipper": "^1.0.1",
     "svgpath": "^2.6.0",
     "web-worker": "^1.5.0"
   },
   "devDependencies": {
+    "@types/js-clipper": "^0.0.32",
+    "@types/node": "^25.1.0",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.1",
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
     "eslint-plugin-unused-imports": "^4.3.0",
     "jsdom": "^22.1.0",
+    "typescript": "^5.9.3",
     "vitest": "^1.0.0"
   }
 }

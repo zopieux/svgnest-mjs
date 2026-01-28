@@ -3,15 +3,20 @@
 
 'use strict';
 
+export type MatrixArray = [number, number, number, number, number, number];
+
 class Matrix {
+  private queue: MatrixArray[] = [];   // list of matrixes to apply
+  private cache: MatrixArray | null = null; // combined matrix cache
+
   constructor() {
-    this.queue = [];   // list of matrixes to apply
-    this.cache = null; // combined matrix cache
+    this.queue = [];
+    this.cache = null;
   }
 
   // combine 2 matrixes
   // m1, m2 - [a, b, c, d, e, g]
-  combine(m1, m2) {
+  private combine(m1: MatrixArray, m2: MatrixArray): MatrixArray {
     return [
       m1[0] * m2[0] + m1[2] * m2[1],
       m1[1] * m2[0] + m1[3] * m2[1],
@@ -22,7 +27,7 @@ class Matrix {
     ];
   }
 
-  isIdentity() {
+  isIdentity(): boolean {
     if (!this.cache) {
       this.cache = this.toArray();
     }
@@ -35,7 +40,7 @@ class Matrix {
     return false;
   }
 
-  matrix(m) {
+  matrix(m: MatrixArray): this {
     if (m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1 && m[4] === 0 && m[5] === 0) {
       return this;
     }
@@ -44,7 +49,7 @@ class Matrix {
     return this;
   }
 
-  translate(tx, ty) {
+  translate(tx: number, ty: number): this {
     if (tx !== 0 || ty !== 0) {
       this.cache = null;
       this.queue.push([1, 0, 0, 1, tx, ty]);
@@ -52,7 +57,7 @@ class Matrix {
     return this;
   }
 
-  scale(sx, sy) {
+  scale(sx: number, sy: number): this {
     if (sx !== 1 || sy !== 1) {
       this.cache = null;
       this.queue.push([sx, 0, 0, sy, 0, 0]);
@@ -60,7 +65,7 @@ class Matrix {
     return this;
   }
 
-  rotate(angle, rx, ry) {
+  rotate(angle: number, rx: number, ry: number): this {
     let rad, cos, sin;
 
     if (angle !== 0) {
@@ -78,7 +83,7 @@ class Matrix {
     return this;
   }
 
-  skewX(angle) {
+  skewX(angle: number): this {
     if (angle !== 0) {
       this.cache = null;
       this.queue.push([1, 0, Math.tan(angle * Math.PI / 180), 1, 0, 0]);
@@ -86,7 +91,7 @@ class Matrix {
     return this;
   }
 
-  skewY(angle) {
+  skewY(angle: number): this {
     if (angle !== 0) {
       this.cache = null;
       this.queue.push([1, Math.tan(angle * Math.PI / 180), 0, 1, 0, 0]);
@@ -95,7 +100,7 @@ class Matrix {
   }
 
   // Flatten queue
-  toArray() {
+  toArray(): MatrixArray {
     if (this.cache) {
       return this.cache;
     }
@@ -120,7 +125,7 @@ class Matrix {
 
   // Apply list of matrixes to (x,y) point.
   // If `isRelative` set, `translate` component of matrix will be skipped
-  calc(x, y, isRelative) {
+  calc(x: number, y: number, isRelative?: boolean): [number, number] {
     let m;
 
     // Don't change point on empty transforms queue
